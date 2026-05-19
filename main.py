@@ -63,7 +63,7 @@ def get_char_lists_llm():
             total_failed += 1
     
     print(f'  [X] TOTAL FAILED: {total_failed}')
-    print(f'  [X] TOTAL SUCCES: {total_success}')
+    print(f'  [X] TOTAL SUCCES: {total_success}\n\n')
     
     return llm_char_lists
 
@@ -72,18 +72,37 @@ def get_char_lists_llm():
 
 
 def send_char_list_prompt(text):
+
+#The value <background_character> is used for characters who play a subordinate role in the text. They are part of the narrative world but do not fulfill any essential function for the plot or the development of the main characters. They are usually not referred to by a proper name in the text and are instead described by generic terms (e.g., "the woman", "the traveler", "the saleswoman") and mentioned only once or a few times.
+ 
     
     template = """
 TEXT:
 {text}
 
+CHARACTERS:
+A character is any entity in a fictional text that is explicitly represented as capable of agency, communication, thought, emotion, or perception. Characters may be human or anthropomorphized, artificial, zoomorphic, or supernatural beings.
+
+SPECIAL CHARACTER VALUES:
+Use <crowd> for collective entities such as groups, crowds, audiences, mobs, or teams when they participate in actions in the text.
+If a named character acts as part of such a collective entity, include both the character’s name and <crowd>.
+
+Use <background_character> for unnamed minor characters who appear briefly and do not play a significant role in the plot.
+
 TASK:
-Identify all characters mentioned in the text. 
+Identify all entities that function as characters in the text.
 
 CONSTRAINTS:
 - Do not repeat characters.
-- Use the most complete form of the name.
+- Do not drop proper names even if a generic descriptor exists
+- Use the most complete form explicitly stated in the text.
 - Preserve titles such as Mr., Don, Dr., etc.
+- Do not include locations, organizations, or objects unless they are explicitly personified or act as characters.
+- Exclude religious, mythological, and abstract symbolic entities (e.g. God, Virgin Mary, saints, divine forces) unless they appear as physically acting characters within the fictional narrative.
+- Invocation, speech references, prayers, or metaphors do not count as participation.
+
+OUTPUT FORMAT:
+Return only a JSON array of strings.
 """
 
     complete_msg = [
@@ -120,6 +139,7 @@ CONSTRAINTS:
 
 def print_char_lists(dict_char_lists):
     for title, chars in dict_char_lists.items():
+        chars.sort(key=str.lower)
         print(f'{title}:')
         for char in chars:
             print(f'  - {char}')
