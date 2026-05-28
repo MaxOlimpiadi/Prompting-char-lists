@@ -94,7 +94,7 @@ Identify all entities that function as characters in the text.
 
 CONSTRAINTS:
 - Do not repeat characters.
-- Do not drop proper names even if a generic descriptor exists
+- Use proper names whenever available, even if a generic descriptor exists.
 - Use the most complete form explicitly stated in the text.
 - Preserve titles such as Mr., Don, Dr., etc.
 - Do not include locations, organizations, or objects unless they are explicitly personified or act as characters.
