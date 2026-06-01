@@ -3,9 +3,11 @@ import os
 import json
 from pydantic import BaseModel, Field
 from typing import List
+import requests 
 
 RAW_DATA_DIR = 'raw_data'
 ANNOTATED_DATA_DIR = 'annotated_data'
+EXPERIMENTAL_DATA_DIR = 'prepared_experimental_data'
 
 api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key = api_key)
@@ -44,31 +46,15 @@ def get_char_lists_annotated():
 
 
 
-def get_char_lists_llm():
-    total_success = 0
-    total_failed = 0
-    llm_char_lists = {}
-    reviewed_llm_char_lists = {}
-    for file_name in os.listdir(RAW_DATA_DIR):
-        if not file_name.endswith('.txt'):
-            continue
-        file_path = os.path.join(RAW_DATA_DIR, file_name)
-        txt = load_text(file_path)
-        title = os.path.splitext(file_name)[0]
-        is_ok, chars = send_char_list_prompt(txt)
-        if is_ok: 
-            total_success += 1
-            llm_char_lists[title] = chars
-            reviewed_chars = send_review_prompt(chars, txt)
-            reviewed_llm_char_lists[title] = reviewed_chars
-        else: 
-            print(f'Smth went wrong with the file {title}')
-            total_failed += 1
-    
-    print(f'  [X] TOTAL FAILED: {total_failed}')
-    print(f'  [X] TOTAL SUCCES: {total_success}\n\n')
-    
-    return llm_char_lists, reviewed_llm_char_lists
+def get_char_list_llm(text):
+    is_ok, chars = send_char_list_prompt(text)
+    if is_ok: 
+        llm_char_list = chars
+        reviewed_llm_char_list = send_review_prompt(chars, text)
+    else: 
+        print('Smth went wrong with the file')
+        return [], []
+    return llm_char_list, reviewed_llm_char_list
 
 
 
@@ -124,7 +110,8 @@ Return the result in the required structured format.
 
     try: 
         response = client.beta.chat.completions.parse(
-            model = "gpt-5.2",
+            model="gpt-5-mini",
+            # model = "gpt-5.2",
             messages = complete_msg,
             response_format = CharListResponse
             
@@ -205,7 +192,8 @@ Return the result in the required structured format.
     ]
     
     response = client.beta.chat.completions.parse(
-        model = "gpt-5.2",
+        #model = "gpt-5.2",
+        model="gpt-5-mini",
         messages = complete_msgs,
         response_format = CharListResponse
         
@@ -226,23 +214,122 @@ def print_char_lists(dict_char_lists):
         for char in chars:
             print(f'  - {char}')
         
+
+def get_phrase_text(phrase_spans, text): 
+    phrase_text = []
+    for span in phrase_spans:
+        phrase_text.append(get_span_text(span, text))
+    phrase_text = ' ... '.join(phrase_text)
+    return phrase_text
+
+
+
+def get_span_text(span, text):     # e.g. [24, 35]
+    start, end = span
+    return text[start:end]
     
 
+
+def get_verby_phrases_and_sentences(text):
+    response = requests.post("http://127.0.0.1:8000/segment", json={"text": text})
+    #print(response.json())
+    # Prints: {'verbal_phrases': [[[0, 30], [60, 69]], [[31, 47]], [[71, 90]]], 'sentences': [[0, 70], [71, 90]]}    
+    dict_response = response.json()
+    participations = []
+    sentences = []
+    
+    for phrase_spans in dict_response['verbal_phrases']: # e.g. phrase_spans [[0, 30], [60, 69]]
+        phrase_text = get_phrase_text(phrase_spans, text)    
+        participations.append(
+            {
+                "spans": phrase_spans,
+                "phrase_text": phrase_text,
+                "agentive": [],
+                "low_agentive": [],
+                "passive": []
+            }
+        )
+    for sent_span in dict_response['sentences']:
+        sent_text = get_span_text(sent_span, text)
+        sentences.append(
+            {
+                "span": sent_span,
+                "sentence_text": sent_text,
+            }
+        )
+    
+    return participations, sentences
+
+
+
+
+
+def get_text_from_file(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        text = f.read()
+    return text 
+
+
+def get_title_from_file(file_name):
+    return os.path.splitext(file_name)[0]
+
+
+def prepare_data(RAW_DATA_DIR):
+    data = {}
+    for file_name in os.listdir(RAW_DATA_DIR):
+        if not file_name.endswith('.txt'):
+            continue
+        print(f'Processing file {file_name}...')
+        file_path = os.path.join(RAW_DATA_DIR, file_name)
+        
+        text = get_text_from_file(file_path)        # text
+        title = get_title_from_file(file_name)      # title
+        llm_char_list, _ = get_char_list_llm(text)    # getting char list via LLM
+        participations, sentences = get_verby_phrases_and_sentences(text)    # getting phrases and sentences via verby
+        
+        data[title] = {
+            "characters": sorted(llm_char_list, key = str.lower),
+            "participations": participations,
+            "text": text,
+            "sentences": sentences
+        }
+        print(f"Successfully processed: {file_name}")
+               
+    return data
+
+
+def save_data(data, EXPERIMENTAL_DATA_DIR):
+    os.makedirs(EXPERIMENTAL_DATA_DIR, exist_ok = True)
+    for title, item_data in data.items():
+        output_path = os.path.join(EXPERIMENTAL_DATA_DIR, f'{title}_experimental.json') 
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(item_data, f, ensure_ascii = False, indent = 2)
+            
+    
     
 
 def main():
     
-    print('\n\n------------------GOLD CHAR LISTS--------------------\n\n')
-    ann_chars = get_char_lists_annotated()
-    print_char_lists(ann_chars)
     
-    print('\n\n------------------LLM CHAR LISTS--------------------\n\n')
+    data = prepare_data(RAW_DATA_DIR)
+    save_data(data, EXPERIMENTAL_DATA_DIR)
     
-    llm_char_lists, reviewed_llm_char_lists = get_char_lists_llm()
-    print('\n\n+++++Raw LLM char lists:+++++\n')
-    print_char_lists(llm_char_lists)
+    # print('\n\n------------------GOLD CHAR LISTS--------------------\n\n')
+    # ann_chars = get_char_lists_annotated()
+    # print_char_lists(ann_chars)
     
-    print('\n\n+++++Reviewed LLM char lists:+++++\n')
-    print_char_lists(reviewed_llm_char_lists)
+    # print('\n\n------------------LLM CHAR LISTS--------------------\n\n')
+    
+    # llm_char_lists, reviewed_llm_char_lists = get_char_lists_llm()
+    # print('\n\n+++++Raw LLM char lists:+++++\n')
+    # print_char_lists(llm_char_lists)
+    
+    # print('\n\n+++++Reviewed LLM char lists:+++++\n')
+    # print_char_lists(reviewed_llm_char_lists)
+    
+    
+    # phrases = get_verby_phrases()
+    
+    
     
 main()
