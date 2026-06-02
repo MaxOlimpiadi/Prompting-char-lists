@@ -314,21 +314,7 @@ def main():
     data = prepare_data(RAW_DATA_DIR)
     save_data(data, EXPERIMENTAL_DATA_DIR)
     
-    # print('\n\n------------------GOLD CHAR LISTS--------------------\n\n')
-    # ann_chars = get_char_lists_annotated()
-    # print_char_lists(ann_chars)
     
-    # print('\n\n------------------LLM CHAR LISTS--------------------\n\n')
-    
-    # llm_char_lists, reviewed_llm_char_lists = get_char_lists_llm()
-    # print('\n\n+++++Raw LLM char lists:+++++\n')
-    # print_char_lists(llm_char_lists)
-    
-    # print('\n\n+++++Reviewed LLM char lists:+++++\n')
-    # print_char_lists(reviewed_llm_char_lists)
-    
-    
-    # phrases = get_verby_phrases()
     
     
     
