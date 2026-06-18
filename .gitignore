@@ -2,4 +2,7 @@
 annotated_data/
 raw_data/OLD/
 output.docx
-prepared_experimental_data/
+extract_text.py
+
+prepared_experimental_data/*
+!.gitkeep
