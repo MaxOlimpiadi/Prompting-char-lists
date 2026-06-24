@@ -512,8 +512,18 @@ def get_characters_interactions(participations):
     return char_interactions
                 
 
-def get_characters_counts():
-    return {}
+
+# Counts how many times each character appears in the participations.
+# Characters that do not appear in any participation are not included.
+def get_characters_counts(participations):
+    character_counts = {}
+    for p in participations:
+        for l in LABELS:
+            for char in p[l]:
+                if char not in character_counts:
+                    character_counts[char] = 0
+                character_counts[char] += 1
+    return character_counts
 
 
 
@@ -558,7 +568,7 @@ def get_individual_characters_agency(participations):
 def get_character_graph(participations):
        sentences_cooccurrence = get_sentences_cooccurrence()  # for now we leave it empty
        characters_interactions = get_characters_interactions(participations)
-       characters_counts = get_characters_counts()    # for now we leave it empty
+       characters_counts = get_characters_counts(participations)
        characters_agency = get_characters_agency(participations)
        individual_characters_agency = get_individual_characters_agency(participations)
        
