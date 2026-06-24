@@ -362,7 +362,7 @@ def get_title_from_file(file_name):
 def save_data(data, EXPERIMENTAL_DATA_DIR):
     os.makedirs(EXPERIMENTAL_DATA_DIR, exist_ok = True)
     for title, item_data in data.items():
-        output_path = os.path.join(EXPERIMENTAL_DATA_DIR, f'FINAL_{title}_experimental.json') 
+        output_path = os.path.join(EXPERIMENTAL_DATA_DIR, f'GRIMM_{title}_experimental.json') 
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(item_data, f, ensure_ascii = False, indent = 2)
 
